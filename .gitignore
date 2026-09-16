@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.local
+web/.env.local
+*.log
+.next/
+uploads/
+
+# Supabase
+.supabase/
+supabase/.temp/
+supabase/functions/**/.env
