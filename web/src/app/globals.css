@@ -4,6 +4,85 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Sarabun', sans-serif;
+@layer base {
+  body {
+    font-family: 'Sarabun', sans-serif;
+    @apply bg-whiten text-body;
+  }
+
+  /* Smooth scroll */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* ── Button variants ── */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold text-sm px-4 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-60;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center gap-2 border border-stroke text-body font-medium text-sm px-4 py-2.5 rounded-xl hover:bg-whiter transition-colors disabled:opacity-60;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center gap-2 bg-danger hover:opacity-90 text-white font-semibold text-sm px-4 py-2.5 rounded-xl transition-colors disabled:opacity-60;
+  }
+
+  /* ── Form input ── */
+  .form-input {
+    @apply w-full px-4 py-2.5 border border-stroke rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary focus:border-primary outline-none transition;
+  }
+
+  .form-select {
+    @apply w-full px-4 py-2.5 border border-stroke rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary focus:border-primary outline-none transition;
+  }
+
+  /* ── Card ── */
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-stroke overflow-hidden;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-stroke;
+  }
+
+  /* ── Table ── */
+  .table-head th {
+    @apply px-5 py-3 text-left text-xs font-semibold text-bodydark uppercase tracking-wide bg-whiter border-b border-stroke;
+  }
+
+  .table-row {
+    @apply border-b border-stroke last:border-0 hover:bg-whiten transition-colors;
+  }
+
+  /* ── Section header ── */
+  .section-title {
+    @apply flex items-center gap-2 mb-4;
+  }
+
+  .section-title::before {
+    content: '';
+    @apply block w-1 h-5 bg-primary rounded-full;
+  }
+
+  /* ── Status badge base ── */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  /* ── Alert ── */
+  .alert-error {
+    @apply flex items-start gap-2 bg-danger/10 border border-danger/30 text-danger text-sm px-4 py-3 rounded-xl;
+  }
+
+  .alert-info {
+    @apply flex items-start gap-2 bg-primary/10 border border-primary/30 text-primary text-sm px-4 py-3 rounded-xl;
+  }
+
+  /* ── Loading spinner ── */
+  .spinner {
+    @apply w-5 h-5 border-2 border-stroke border-t-primary rounded-full animate-spin;
+  }
 }

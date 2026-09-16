@@ -31,66 +31,94 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white">ระบบบริหารโครงการ</h1>
-          <p className="text-slate-400 text-sm mt-1">และเบิกจ่ายค่าใช้จ่าย</p>
+    <div className="min-h-screen bg-boxdark-2 flex">
+      {/* Left panel */}
+      <div className="hidden lg:flex flex-col justify-center px-16 w-[45%] text-white">
+        <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center mb-8">
+          <span className="text-white font-bold text-xl">B</span>
         </div>
-
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">เข้าสู่ระบบ</h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ชื่อผู้ใช้
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
-                placeholder="กรอก username"
-                required
-                autoFocus
-              />
+        <h1 className="text-3xl font-bold mb-3">ระบบบริหารโครงการ</h1>
+        <p className="text-bodydark text-base leading-relaxed">
+          จัดการโครงการ ผู้เข้าร่วม และเบิกจ่ายค่าใช้จ่าย<br />
+          พร้อมระบบสวัสดิการสะสมอัตโนมัติ
+        </p>
+        <div className="mt-12 space-y-3">
+          {[
+            'จัดการโครงการและผู้เข้าร่วมได้ง่าย',
+            'คำนวณยอดแบ่ง 60/40 อัตโนมัติ',
+            'ติดตามงบสวัสดิการรายบุคคล',
+          ].map((t) => (
+            <div key={t} className="flex items-center gap-3 text-bodydark2 text-sm">
+              <div className="w-1.5 h-1.5 bg-primary rounded-full shrink-0" />
+              {t}
             </div>
+          ))}
+        </div>
+      </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                รหัสผ่าน
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
-                placeholder="กรอกรหัสผ่าน"
-                required
-              />
+      {/* Right panel */}
+      <div className="flex-1 flex items-center justify-center px-6 bg-whiten">
+        <div className="w-full max-w-sm">
+          <div className="lg:hidden text-center mb-8">
+            <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white font-bold text-xl">B</span>
             </div>
+            <h1 className="text-xl font-bold text-boxdark">ระบบบริหารโครงการ</h1>
+          </div>
 
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-            )}
+          <div className="bg-white rounded-2xl shadow-lg border border-stroke p-8">
+            <h2 className="text-xl font-bold text-boxdark mb-1">เข้าสู่ระบบ</h2>
+            <p className="text-body text-sm mb-6">กรอกข้อมูลเพื่อเข้าใช้งานระบบ</p>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2.5 rounded-lg transition-colors text-sm"
-            >
-              {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
-            </button>
-          </form>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-boxdark mb-1.5">ชื่อผู้ใช้</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="form-input"
+                  placeholder="กรอก username"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-boxdark mb-1.5">รหัสผ่าน</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="form-input"
+                  placeholder="กรอกรหัสผ่าน"
+                  required
+                />
+              </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            <p className="text-xs text-gray-400 text-center">บัญชีสำหรับทดสอบ</p>
-            <div className="mt-2 space-y-1 text-xs text-gray-500">
-              <p><span className="font-medium">superadmin</span> / password123</p>
-              <p><span className="font-medium">anucha</span> / password123 (admin)</p>
-              <p><span className="font-medium">wichai</span> / password123 (leader)</p>
-              <p><span className="font-medium">thanakorn</span> / password123 (user)</p>
+              {error && (
+                <div className="alert-error">
+                  <span>⚠</span><span>{error}</span>
+                </div>
+              )}
+
+              <button type="submit" disabled={loading} className="btn-primary w-full justify-center mt-2">
+                {loading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    กำลังเข้าสู่ระบบ...
+                  </>
+                ) : 'เข้าสู่ระบบ'}
+              </button>
+            </form>
+
+            <div className="mt-6 pt-5 border-t border-stroke">
+              <p className="text-xs text-bodydark mb-2 font-medium">บัญชีสำหรับทดสอบ (password: password123)</p>
+              <div className="grid grid-cols-2 gap-1 text-xs text-body">
+                <span><span className="font-semibold text-boxdark">somsakdi</span> · superadmin</span>
+                <span><span className="font-semibold text-boxdark">anucha</span> · admin</span>
+                <span><span className="font-semibold text-boxdark">wichai</span> · leader</span>
+                <span><span className="font-semibold text-boxdark">thanakorn</span> · user</span>
+              </div>
             </div>
           </div>
         </div>

@@ -5,10 +5,22 @@ import { api } from '@/lib/api';
 import { getUser, isAdmin, isSuperAdmin, getRoleLabel, getFullName } from '@/lib/auth';
 import { RoleBadge } from '@/components/StatusBadge';
 import Link from 'next/link';
+import { MagnifyingGlassIcon, PlusIcon, UsersIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const PREFIXES = ['นาย', 'นางสาว', 'นาง'];
 const ROLES = ['user', 'leader', 'admin', 'superadmin'];
 const TEAMS = ['ทีมพัฒนาระบบ', 'ทีมการตลาด', 'ทีมปฏิบัติการ', 'ทีมบริหาร'];
+
+function FormField({ label, required, children }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-boxdark mb-1.5">
+        {label}{required && <span className="text-danger ml-0.5">*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
 
 export default function MembersPage() {
   const [user, setUser] = useState(null);
@@ -16,52 +28,33 @@ export default function MembersPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editMember, setEditMember] = useState(null);
-  const [form, setForm] = useState({
-    prefix: 'นาย', first_name: '', last_name: '', nickname: '',
-    team: '', username: '', password: '', role: 'user',
-  });
+  const [form, setForm] = useState({ prefix: 'นาย', first_name: '', last_name: '', nickname: '', team: '', username: '', password: '', role: 'user' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    const u = getUser();
-    setUser(u);
-    loadMembers();
-  }, []);
+  useEffect(() => { const u = getUser(); setUser(u); loadMembers(); }, []);
 
   async function loadMembers() {
-    try {
-      const data = await api.getMembers();
-      setMembers(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    try { const data = await api.getMembers(); setMembers(data); }
+    catch (err) { console.error(err); }
+    finally { setLoading(false); }
   }
 
   function openCreate() {
     setEditMember(null);
     setForm({ prefix: 'นาย', first_name: '', last_name: '', nickname: '', team: '', username: '', password: '', role: 'user' });
-    setError('');
-    setShowModal(true);
+    setError(''); setShowModal(true);
   }
 
   function openEdit(m) {
     setEditMember(m);
-    setForm({
-      prefix: m.prefix, first_name: m.first_name, last_name: m.last_name,
-      nickname: m.nickname || '', team: m.team || '', username: m.username, password: '', role: m.role,
-    });
-    setError('');
-    setShowModal(true);
+    setForm({ prefix: m.prefix, first_name: m.first_name, last_name: m.last_name, nickname: m.nickname || '', team: m.team || '', username: m.username, password: '', role: m.role });
+    setError(''); setShowModal(true);
   }
 
   async function handleSubmit(e) {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
+    e.preventDefault(); setSaving(true); setError('');
     try {
       if (editMember) {
         const body = { ...form };
@@ -72,96 +65,82 @@ export default function MembersPage() {
         if (!form.password) return setError('กรุณาตั้งรหัสผ่าน');
         await api.createMember(form);
       }
-      setShowModal(false);
-      await loadMembers();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+      setShowModal(false); await loadMembers();
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
   }
 
   async function handleDelete(m) {
     if (!confirm(`ยืนยันการลบสมาชิก "${getFullName(m)}"?`)) return;
-    try {
-      await api.deleteMember(m.id);
-      await loadMembers();
-    } catch (err) {
-      alert(err.message);
-    }
+    try { await api.deleteMember(m.id); await loadMembers(); }
+    catch (err) { alert(err.message); }
   }
 
   const filtered = members.filter((m) =>
-    !search ||
-    getFullName(m).includes(search) ||
-    m.username.includes(search) ||
-    (m.team || '').includes(search)
+    !search || getFullName(m).includes(search) || m.username.includes(search) || (m.team || '').includes(search)
   );
 
   if (!user) return null;
 
   const availableRoles = isSuperAdmin(user)
-    ? ROLES
-    : ROLES.filter((r) => r !== 'superadmin' && r !== 'admin');
+    ? ROLES : ROLES.filter((r) => r !== 'superadmin' && r !== 'admin');
 
   return (
     <Layout>
       <div className="p-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">สมาชิกทั้งหมด</h1>
-            <p className="text-gray-500 text-sm mt-0.5">{members.length} คน</p>
+            <h1 className="text-xl font-bold text-boxdark">สมาชิกทั้งหมด</h1>
+            <p className="text-body text-sm mt-0.5">{members.length} คน</p>
           </div>
           {isSuperAdmin(user) && (
-            <button onClick={openCreate}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-              + เพิ่มสมาชิก
+            <button onClick={openCreate} className="btn-primary">
+              <PlusIcon className="w-4 h-4" />เพิ่มสมาชิก
             </button>
           )}
         </div>
 
-        <div className="mb-4">
-          <input type="text" placeholder="ค้นหาชื่อ, username, ทีม..."
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm w-full max-w-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+        <div className="mb-5 relative max-w-xs">
+          <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-bodydark" />
+          <input type="text" placeholder="ค้นหาชื่อ, username, ทีม..." value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 border border-stroke rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-gray-400">กำลังโหลด...</div>
+          <div className="flex items-center justify-center py-20 text-bodydark">
+            <div className="flex items-center gap-3"><div className="spinner" /><span className="text-sm">กำลังโหลด...</span></div>
+          </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="card">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead>
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">ชื่อ-นามสกุล</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">ชื่อเล่น</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">ทีม</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Username</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">สิทธิ์</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">ยอดสะสม</th>
-                  {isAdmin(user) && <th className="px-4 py-3 w-24"></th>}
+                  {['ชื่อ-นามสกุล','ชื่อเล่น','ทีม','Username','สิทธิ์','ยอดสะสม'].map((h) => (
+                    <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-bodydark uppercase tracking-wide bg-whiter border-b border-stroke">{h}</th>
+                  ))}
+                  {isAdmin(user) && <th className="px-5 py-3 bg-whiter border-b border-stroke w-24" />}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {filtered.map((m) => (
-                  <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-800">{getFullName(m)}</td>
-                    <td className="px-4 py-3 text-gray-600">{m.nickname || '-'}</td>
-                    <td className="px-4 py-3 text-gray-600">{m.team || '-'}</td>
-                    <td className="px-4 py-3 text-gray-500">{m.username}</td>
-                    <td className="px-4 py-3"><RoleBadge role={m.role} /></td>
-                    <td className="px-4 py-3">
-                      <Link href={`/members/${m.id}/summary`}
-                        className="text-xs text-blue-600 hover:underline">ดูยอด</Link>
+                  <tr key={m.id} className="table-row">
+                    <td className="px-5 py-4 font-medium text-boxdark">{getFullName(m)}</td>
+                    <td className="px-5 py-4 text-body">{m.nickname || <span className="text-bodydark">-</span>}</td>
+                    <td className="px-5 py-4 text-body text-xs">{m.team || <span className="text-bodydark">-</span>}</td>
+                    <td className="px-5 py-4 text-bodydark font-mono text-xs">{m.username}</td>
+                    <td className="px-5 py-4"><RoleBadge role={m.role} /></td>
+                    <td className="px-5 py-4">
+                      <Link href={`/members/${m.id}/summary`} className="text-xs text-primary hover:underline font-medium">ดูยอด →</Link>
                     </td>
                     {isAdmin(user) && (
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          {(isSuperAdmin(user) || (isAdmin(user) && !['admin', 'superadmin'].includes(m.role))) && (
-                            <button onClick={() => openEdit(m)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
+                      <td className="px-5 py-4">
+                        <div className="flex gap-3">
+                          {(isSuperAdmin(user) || (isAdmin(user) && !['admin','superadmin'].includes(m.role))) && (
+                            <button onClick={() => openEdit(m)} className="text-xs text-primary hover:underline font-medium">แก้ไข</button>
                           )}
                           {isSuperAdmin(user) && m.id !== user.id && (
-                            <button onClick={() => handleDelete(m)} className="text-xs text-red-500 hover:underline">ลบ</button>
+                            <button onClick={() => handleDelete(m)} className="text-xs text-danger hover:underline font-medium">ลบ</button>
                           )}
                         </div>
                       </td>
@@ -169,9 +148,12 @@ export default function MembersPage() {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan="7" className="px-4 py-12 text-center text-gray-400">ไม่พบสมาชิก</td>
-                  </tr>
+                  <tr><td colSpan="7">
+                    <div className="flex flex-col items-center justify-center py-16 text-bodydark">
+                      <UsersIcon className="w-12 h-12 mb-3 text-meta-9" />
+                      <p className="text-sm">ไม่พบสมาชิก</p>
+                    </div>
+                  </td></tr>
                 )}
               </tbody>
             </table>
@@ -181,86 +163,54 @@ export default function MembersPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-800">{editMember ? 'แก้ไขข้อมูลสมาชิก' : 'เพิ่มสมาชิกใหม่'}</h2>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-stroke">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stroke">
+              <h2 className="font-semibold text-boxdark">{editMember ? 'แก้ไขข้อมูลสมาชิก' : 'เพิ่มสมาชิกใหม่'}</h2>
+              <button onClick={() => setShowModal(false)} className="p-1.5 text-bodydark hover:text-body rounded-lg hover:bg-whiten">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">คำนำหน้า *</label>
-                  <select value={form.prefix} onChange={(e) => setForm((f) => ({ ...f, prefix: e.target.value }))}
-                    className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <FormField label="คำนำหน้า" required>
+                  <select value={form.prefix} onChange={(e) => setForm((f) => ({ ...f, prefix: e.target.value }))} className="form-select">
                     {PREFIXES.map((p) => <option key={p}>{p}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">ชื่อ *</label>
-                  <input type="text" value={form.first_name}
-                    onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
-                    className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">นามสกุล *</label>
-                  <input type="text" value={form.last_name}
-                    onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
-                    className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
-                </div>
+                </FormField>
+                <FormField label="ชื่อ" required>
+                  <input type="text" value={form.first_name} onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))} className="form-input" required />
+                </FormField>
+                <FormField label="นามสกุล" required>
+                  <input type="text" value={form.last_name} onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))} className="form-input" required />
+                </FormField>
               </div>
-
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">ชื่อเล่น</label>
-                  <input type="text" value={form.nickname}
-                    onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))}
-                    className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">ทีม</label>
-                  <input type="text" list="teams" value={form.team}
-                    onChange={(e) => setForm((f) => ({ ...f, team: e.target.value }))}
-                    className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                <FormField label="ชื่อเล่น">
+                  <input type="text" value={form.nickname} onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))} className="form-input" />
+                </FormField>
+                <FormField label="ทีม">
+                  <input type="text" list="teams" value={form.team} onChange={(e) => setForm((f) => ({ ...f, team: e.target.value }))} className="form-input" />
                   <datalist id="teams">{TEAMS.map((t) => <option key={t} value={t} />)}</datalist>
-                </div>
+                </FormField>
               </div>
-
               {!editMember && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Username *</label>
-                  <input type="text" value={form.username}
-                    onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                    className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
-                </div>
+                <FormField label="Username" required>
+                  <input type="text" value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} className="form-input" required />
+                </FormField>
               )}
-
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  {editMember ? 'รหัสผ่านใหม่ (ว่างไว้ถ้าไม่ต้องการเปลี่ยน)' : 'รหัสผ่าน *'}
-                </label>
-                <input type="password" value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  required={!editMember} />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">สิทธิ์ *</label>
-                <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-                  className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                  {availableRoles.map((r) => (
-                    <option key={r} value={r}>{getRoleLabel(r)}</option>
-                  ))}
+              <FormField label={editMember ? 'รหัสผ่านใหม่ (ว่างไว้ถ้าไม่เปลี่ยน)' : 'รหัสผ่าน'} required={!editMember}>
+                <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} className="form-input" required={!editMember} />
+              </FormField>
+              <FormField label="สิทธิ์" required>
+                <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="form-select">
+                  {availableRoles.map((r) => <option key={r} value={r}>{getRoleLabel(r)}</option>)}
                 </select>
-              </div>
-
-              {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm">ยกเลิก</button>
-                <button type="submit" disabled={saving}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">
+              </FormField>
+              {error && <div className="alert-error"><span>⚠</span><span>{error}</span></div>}
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1 justify-center">ยกเลิก</button>
+                <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center">
                   {saving ? 'กำลังบันทึก...' : 'บันทึก'}
                 </button>
               </div>
