@@ -32,19 +32,45 @@ export function requireRole(...roles) {
   });
 }
 
-export async function mintSessionCookie(memberId, role) {
-  const token = jwt.sign(
+export const sessionCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  maxAge: 3600,
+  path: '/',
+};
+
+export function signSessionToken(memberId, role) {
+  return jwt.sign(
     { sub: memberId, role },
     process.env.SUPABASE_JWT_SECRET,
     { expiresIn: '1h' }
   );
+}
+
+export function toClientUser(member) {
+  return {
+    id: member.id,
+    username: member.username,
+    role: member.role,
+    prefix: member.prefix,
+    firstName: member.first_name,
+    lastName: member.last_name,
+    nickname: member.nickname,
+    team: member.team,
+    email: member.email || null,
+  };
+}
+
+export async function mintSessionCookie(memberId, role) {
+  const token = signSessionToken(memberId, role);
   const cookieStore = await cookies();
-  cookieStore.set('session', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 3600,
-    path: '/',
-  });
+  cookieStore.set('session', token, sessionCookieOptions);
+  return token;
+}
+
+export function setSessionCookieOnResponse(response, memberId, role) {
+  const token = signSessionToken(memberId, role);
+  response.cookies.set('session', token, sessionCookieOptions);
   return token;
 }

@@ -28,7 +28,7 @@ export default function MembersPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editMember, setEditMember] = useState(null);
-  const [form, setForm] = useState({ prefix: 'นาย', first_name: '', last_name: '', nickname: '', team: '', username: '', password: '', role: 'user' });
+  const [form, setForm] = useState({ prefix: 'นาย', first_name: '', last_name: '', nickname: '', team: '', username: '', password: '', email: '', role: 'user' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -43,13 +43,13 @@ export default function MembersPage() {
 
   function openCreate() {
     setEditMember(null);
-    setForm({ prefix: 'นาย', first_name: '', last_name: '', nickname: '', team: '', username: '', password: '', role: 'user' });
+    setForm({ prefix: 'นาย', first_name: '', last_name: '', nickname: '', team: '', username: '', password: '', email: '', role: 'user' });
     setError(''); setShowModal(true);
   }
 
   function openEdit(m) {
     setEditMember(m);
-    setForm({ prefix: m.prefix, first_name: m.first_name, last_name: m.last_name, nickname: m.nickname || '', team: m.team || '', username: m.username, password: '', role: m.role });
+    setForm({ prefix: m.prefix, first_name: m.first_name, last_name: m.last_name, nickname: m.nickname || '', team: m.team || '', username: m.username, password: '', email: m.email || '', role: m.role });
     setError(''); setShowModal(true);
   }
 
@@ -62,7 +62,11 @@ export default function MembersPage() {
         delete body.username;
         await api.updateMember(editMember.id, body);
       } else {
-        if (!form.password) return setError('กรุณาตั้งรหัสผ่าน');
+        if (!form.password && !form.email) {
+          setError('กรุณาตั้งรหัสผ่าน หรือกรอกอีเมล @thinknet.co.th สำหรับ Microsoft login');
+          setSaving(false);
+          return;
+        }
         await api.createMember(form);
       }
       setShowModal(false); await loadMembers();
@@ -77,7 +81,7 @@ export default function MembersPage() {
   }
 
   const filtered = members.filter((m) =>
-    !search || getFullName(m).includes(search) || m.username.includes(search) || (m.team || '').includes(search)
+    !search || getFullName(m).includes(search) || m.username.includes(search) || (m.email || '').includes(search) || (m.team || '').includes(search)
   );
 
   if (!user) return null;
@@ -102,7 +106,7 @@ export default function MembersPage() {
 
         <div className="mb-5 relative max-w-xs">
           <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-bodydark" />
-          <input type="text" placeholder="ค้นหาชื่อ, username, ทีม..." value={search}
+          <input type="text" placeholder="ค้นหาชื่อ, username, อีเมล, ทีม..." value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 border border-stroke rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
         </div>
@@ -116,7 +120,7 @@ export default function MembersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr>
-                  {['ชื่อ-นามสกุล','ชื่อเล่น','ทีม','Username','สิทธิ์','ยอดสะสม'].map((h) => (
+                  {['ชื่อ-นามสกุล','ชื่อเล่น','ทีม','Username','อีเมล','สิทธิ์','ยอดสะสม'].map((h) => (
                     <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-bodydark uppercase tracking-wide bg-whiter border-b border-stroke">{h}</th>
                   ))}
                   {isAdmin(user) && <th className="px-5 py-3 bg-whiter border-b border-stroke w-24" />}
@@ -129,6 +133,7 @@ export default function MembersPage() {
                     <td className="px-5 py-4 text-body">{m.nickname || <span className="text-bodydark">-</span>}</td>
                     <td className="px-5 py-4 text-body text-xs">{m.team || <span className="text-bodydark">-</span>}</td>
                     <td className="px-5 py-4 text-bodydark font-mono text-xs">{m.username}</td>
+                    <td className="px-5 py-4 text-body text-xs">{m.email || <span className="text-bodydark">-</span>}</td>
                     <td className="px-5 py-4"><RoleBadge role={m.role} /></td>
                     <td className="px-5 py-4">
                       <Link href={`/members/${m.id}/summary`} className="text-xs text-primary hover:underline font-medium">ดูยอด →</Link>
@@ -148,7 +153,7 @@ export default function MembersPage() {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan="7">
+                  <tr><td colSpan="8">
                     <div className="flex flex-col items-center justify-center py-16 text-bodydark">
                       <UsersIcon className="w-12 h-12 mb-3 text-meta-9" />
                       <p className="text-sm">ไม่พบสมาชิก</p>
@@ -199,8 +204,19 @@ export default function MembersPage() {
                   <input type="text" value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} className="form-input" required />
                 </FormField>
               )}
-              <FormField label={editMember ? 'รหัสผ่านใหม่ (ว่างไว้ถ้าไม่เปลี่ยน)' : 'รหัสผ่าน'} required={!editMember}>
-                <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} className="form-input" required={!editMember} />
+              <FormField label="อีเมล Microsoft">
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  className="form-input"
+                  placeholder="name@thinknet.co.th"
+                />
+                <p className="text-xs text-bodydark mt-1">ต้องเป็น @thinknet.co.th เพื่อผูกกับ Microsoft login</p>
+              </FormField>
+              <FormField label={editMember ? 'รหัสผ่านใหม่ (ว่างไว้ถ้าไม่เปลี่ยน)' : 'รหัสผ่าน'}>
+                <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} className="form-input" />
+                {!editMember && <p className="text-xs text-bodydark mt-1">ไม่บังคับถ้ามีอีเมลบริษัท สำหรับเข้าด้วย Microsoft</p>}
               </FormField>
               <FormField label="สิทธิ์" required>
                 <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="form-select">

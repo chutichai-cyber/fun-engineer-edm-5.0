@@ -4,16 +4,49 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { setUser, getUser } from '@/lib/auth';
 
+const MS_ERRORS = {
+  domain: 'อีเมลต้องเป็น @thinknet.co.th เท่านั้น',
+  oauth: 'ไม่สามารถเข้าสู่ระบบด้วย Microsoft ได้ กรุณาลองใหม่',
+  denied: 'ยกเลิกการเข้าสู่ระบบด้วย Microsoft',
+  config: 'ระบบยังไม่ได้ตั้งค่า Microsoft login',
+  state: 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง',
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [msLoading, setMsLoading] = useState(false);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get('error');
+
+    console.log('===errorCode', errorCode);
+    if (errorCode) {
+      setError(MS_ERRORS[errorCode] || 'เข้าสู่ระบบไม่สำเร็จ');
+      return;
+    }
+
+    if (params.get('ms') === '1') {
+      setMsLoading(true);
+      api.me()
+        .then((user) => {
+          if (!user) return;
+          setUser(user);
+          router.replace('/dashboard');
+        })
+        .catch((err) => {
+          setError(err.message || 'เข้าสู่ระบบไม่สำเร็จ');
+          setMsLoading(false);
+        });
+      return;
+    }
+
     if (getUser()) router.replace('/dashboard');
-  }, []);
+  }, [router]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -28,6 +61,12 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleMicrosoftLogin() {
+    setError('');
+    setMsLoading(true);
+    window.location.href = '/api/auth/microsoft';
   }
 
   return (
@@ -68,7 +107,38 @@ export default function LoginPage() {
 
           <div className="bg-white rounded-2xl shadow-lg border border-stroke p-8">
             <h2 className="text-xl font-bold text-boxdark mb-1">เข้าสู่ระบบ</h2>
-            <p className="text-body text-sm mb-6">กรอกข้อมูลเพื่อเข้าใช้งานระบบ</p>
+            <p className="text-body text-sm mb-6">ใช้บัญชี Microsoft ของบริษัท (@thinknet.co.th)</p>
+
+            {error && (
+              <div className="alert-error mb-4">
+                <span>⚠</span><span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleMicrosoftLogin}
+              disabled={loading || msLoading}
+              className="w-full flex items-center justify-center gap-3 rounded-xl border border-stroke bg-white px-4 py-2.5 text-sm font-medium text-boxdark hover:bg-whiten transition-colors disabled:opacity-60"
+            >
+              {msLoading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-bodydark/40 border-t-boxdark rounded-full animate-spin" />
+                  กำลังเข้าสู่ระบบ...
+                </>
+              ) : (
+                <>
+                  <MicrosoftLogo />
+                  เข้าสู่ระบบด้วย Microsoft
+                </>
+              )}
+            </button>
+
+            <div className="flex items-center gap-3 my-6">
+              <div className="h-px flex-1 bg-stroke" />
+              <span className="text-xs text-bodydark">หรือใช้ชื่อผู้ใช้</span>
+              <div className="h-px flex-1 bg-stroke" />
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -95,13 +165,7 @@ export default function LoginPage() {
                 />
               </div>
 
-              {error && (
-                <div className="alert-error">
-                  <span>⚠</span><span>{error}</span>
-                </div>
-              )}
-
-              <button type="submit" disabled={loading} className="btn-primary w-full justify-center mt-2">
+              <button type="submit" disabled={loading || msLoading} className="btn-primary w-full justify-center mt-2">
                 {loading ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -124,5 +188,16 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function MicrosoftLogo() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true">
+      <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+      <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+    </svg>
   );
 }

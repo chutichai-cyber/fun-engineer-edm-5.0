@@ -12,7 +12,7 @@ expense-fun-engineer/
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── api/              ← API Routes (server-side only)
-│   │   │   │   ├── auth/         ← login, logout, me, refresh
+│   │   │   │   ├── auth/         ← login, logout, me, refresh, microsoft
 │   │   │   │   ├── members/      ← CRUD สมาชิก
 │   │   │   │   ├── projects/     ← CRUD โครงการ + participants + status
 │   │   │   │   ├── expenses/     ← เอกสารเบิกจ่าย + items + workflow
@@ -22,6 +22,7 @@ expense-fun-engineer/
 │   │   ├── components/
 │   │   └── lib/
 │   │       ├── auth-server.js    ← getSessionUser() อ่าน httpOnly cookie
+│   │       ├── microsoft-auth.js ← Microsoft Entra ID (OIDC + PKCE)
 │   │       ├── db.js             ← pg Pool → Supabase Postgres
 │   │       ├── supabase-server.js← Storage client (service role key)
 │   │       ├── calculation.js    ← คำนวณ 60/40
@@ -35,7 +36,8 @@ expense-fun-engineer/
         ├── 20240101000000_initial_schema.sql   ← tables + storage bucket
         ├── 20240102000000_rls_policies.sql      ← RLS policies
         ├── 20240103000000_seed_settings.sql     ← welfare budget default 1800
-        └── 20240104000000_seed_mockup.sql       ← ข้อมูลทดสอบ (dev เท่านั้น)
+        ├── 20240104000000_seed_mockup.sql       ← ข้อมูลทดสอบ (dev เท่านั้น)
+        └── 20240105000000_members_microsoft.sql ← email + microsoft_oid สำหรับ SSO
 ```
 
 ---
@@ -95,6 +97,11 @@ npm run dev
 | `SUPABASE_SERVICE_ROLE_KEY` | `supabase start` → **`SECRET_KEY`** | `sb_secret_...` |
 | `SUPABASE_JWT_SECRET` | `supabase start` → **`JWT_SECRET`** | `super-secret-jwt-token-...` |
 | `CORP_AUTH_API_URL` | **ไม่ต้องใส่** → ใช้ bcrypt จาก DB แทน | (comment ออก) |
+| `MICROSOFT_CLIENT_ID` | Azure App Registration → Application (client) ID | |
+| `MICROSOFT_CLIENT_SECRET` | Azure App Registration → Certificates & secrets | |
+| `MICROSOFT_TENANT_ID` | Azure App Registration → Directory (tenant) ID | |
+| `MICROSOFT_REDIRECT_URI` | ต้องตรงกับ Redirect URI ใน Azure | `http://localhost:3000/api/auth/microsoft/callback` |
+| `MICROSOFT_ALLOWED_DOMAIN` | โดเมนอีเมลที่อนุญาต | `thinknet.co.th` |
 
 > ดู keys ได้ตลอดเวลาโดยไม่ต้อง start ใหม่:
 > ```bash
@@ -181,6 +188,11 @@ git push origin main
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → **Settings → API** → Project API Keys → `service_role` |
 | `SUPABASE_JWT_SECRET` | Supabase Dashboard → **Settings → API** → JWT Settings → **JWT Secret** |
 | `CORP_AUTH_API_URL` | endpoint ของ corporate auth API จริง (ถ้าไม่มีใช้ bcrypt จาก DB) |
+| `MICROSOFT_CLIENT_ID` | Azure App Registration → Application (client) ID |
+| `MICROSOFT_CLIENT_SECRET` | Azure App Registration → Certificates & secrets |
+| `MICROSOFT_TENANT_ID` | Azure App Registration → Directory (tenant) ID |
+| `MICROSOFT_REDIRECT_URI` | `https://<domain>/api/auth/microsoft/callback` (ต้องตรงกับ Azure) |
+| `MICROSOFT_ALLOWED_DOMAIN` | `thinknet.co.th` |
 
 > **สำคัญ:** `SUPABASE_SERVICE_ROLE_KEY` และ `SUPABASE_JWT_SECRET` คือคนละค่ากัน อย่าสลับกัน
 >
@@ -194,14 +206,25 @@ git push origin main
 ## Auth Flow
 
 ```
-Login (POST /api/auth/login):
+Microsoft Login (GET /api/auth/microsoft):
+  1. redirect ไป Microsoft Entra ID (OIDC + PKCE)
+  2. callback แลก code → Graph /me
+  3. ตรวจว่า email เป็น @thinknet.co.th
+  4. หา members จาก microsoft_oid หรือ email
+     - เจอ → ผูก oid/email
+     - ไม่เจอ → สร้างสมาชิกใหม่ role=user (JIT)
+  5. jwt.sign({ sub: member.id, role }, SUPABASE_JWT_SECRET, 1h)
+  6. set httpOnly cookie 'session' แล้ว redirect /login?ms=1
+  7. frontend เรียก GET /api/auth/me แล้วเก็บ user ใน localStorage
+
+Password Login (POST /api/auth/login) — ยังใช้ได้:
   1. รับ { username, password }
   2. ถ้ามี CORP_AUTH_API_URL → POST ไปตรวจกับ corporate auth API
      ถ้าไม่มี → ตรวจ bcrypt จาก password_hash ในฐานข้อมูล
   3. query members WHERE username = ?
   4. jwt.sign({ sub: member.id, role }, SUPABASE_JWT_SECRET, 1h)
   5. set httpOnly cookie 'session'
-  6. return { user: { id, username, role, ... } }
+  6. return { user: { id, username, role, email, ... } }
   
 ทุก API request:
   → cookie 'session' แนบอัตโนมัติ (credentials: 'include')
@@ -210,6 +233,30 @@ Login (POST /api/auth/login):
 Frontend:
   → เก็บ user object (id/name/role) ใน localStorage สำหรับแสดง UI
   → ไม่เก็บ token ใน localStorage
+```
+
+### Microsoft Entra ID (Azure AD)
+
+สร้าง **App Registration** ใน [Azure Portal](https://portal.azure.com) ของ Thinknet:
+
+1. New registration → เลือก **Accounts in this organizational directory only**
+2. ไปที่ **Authentication** → **Add a platform** → เลือก **Web** (อย่าเลือก SPA)
+3. Redirect URIs ต้องตรงทุกตัวอักษร ไม่มี slash ท้าย:
+   - `http://localhost:3000/api/auth/microsoft/callback`
+   - `http://127.0.0.1:3000/api/auth/microsoft/callback` (ถ้าเปิดผ่าน 127.0.0.1)
+   - Production: `https://<domain>/api/auth/microsoft/callback`
+4. กด **Save** — ถ้าไม่ใส่ตรงนี้จะได้ `AADSTS500113: No reply address is registered`
+5. Certificates & secrets → New client secret → คัดลอก **Value** (ไม่ใช่ Secret ID)
+6. API permissions: `openid`, `profile`, `email`, `User.Read` (Microsoft Graph)
+
+สมาชิกเดิมที่ต้องการเข้าด้วย Microsoft **โดยไม่สร้างบัญชีใหม่** ต้องใส่ `email` ให้ตรงกับบัญชี Microsoft ในหน้าสมาชิกก่อน
+
+หลังเพิ่ม migration `20240105000000_members_microsoft.sql` ให้รัน:
+
+```bash
+supabase db reset          # local — ล้างข้อมูลแล้วรัน migrations ใหม่
+# หรือบน production:
+supabase db push
 ```
 
 ## File Upload/Download Flow
