@@ -1,63 +1,50 @@
 'use client';
 
+// Using TailAdmin's meta color palette for consistent status colors
 const PROJECT_STATUS = {
-  draft: { label: 'ร่าง', color: 'bg-gray-100 text-gray-700' },
-  pending: { label: 'รออนุมัติ', color: 'bg-yellow-100 text-yellow-700' },
-  active: { label: 'กำลังดำเนินการ', color: 'bg-blue-100 text-blue-700' },
-  completed: { label: 'เสร็จสิ้น', color: 'bg-green-100 text-green-700' },
-  cancelled: { label: 'ยกเลิก', color: 'bg-red-100 text-red-700' },
-  rejected: { label: 'ปฏิเสธ', color: 'bg-orange-100 text-orange-700' },
+  draft:     { label: 'ร่าง',            cls: 'bg-meta-9 text-body' },
+  pending:   { label: 'รออนุมัติ',       cls: 'bg-warning/20 text-warning' },
+  active:    { label: 'กำลังดำเนินการ',  cls: 'bg-primary/10 text-primary' },
+  completed: { label: 'เสร็จสิ้น',       cls: 'bg-success/10 text-success' },
+  cancelled: { label: 'ยกเลิก',          cls: 'bg-danger/10 text-danger' },
+  rejected:  { label: 'ปฏิเสธ',          cls: 'bg-meta-1/10 text-meta-1' },
 };
 
 const EXPENSE_STATUS = {
-  pending_review: { label: 'รอตรวจ', color: 'bg-yellow-100 text-yellow-700' },
-  approved: { label: 'อนุมัติ', color: 'bg-green-100 text-green-700' },
-  closed: { label: 'ปิด', color: 'bg-gray-100 text-gray-700' },
-  returned: { label: 'ตีกลับ', color: 'bg-red-100 text-red-700' },
+  pending_review: { label: 'รอตรวจ',  cls: 'bg-warning/20 text-warning' },
+  approved:       { label: 'อนุมัติ',  cls: 'bg-success/10 text-success' },
+  closed:         { label: 'ปิด',      cls: 'bg-meta-9 text-body' },
+  returned:       { label: 'ตีกลับ',   cls: 'bg-danger/10 text-danger' },
 };
 
 const ROLE_STATUS = {
-  superadmin: { label: 'ผู้ดูแลระบบ', color: 'bg-purple-100 text-purple-700' },
-  admin: { label: 'แอดมิน', color: 'bg-blue-100 text-blue-700' },
-  leader: { label: 'หัวหน้าโครงการ', color: 'bg-teal-100 text-teal-700' },
-  user: { label: 'ผู้ใช้งาน', color: 'bg-gray-100 text-gray-600' },
+  superadmin: { label: 'ผู้ดูแลระบบ',   cls: 'bg-meta-5/10 text-meta-5' },
+  admin:      { label: 'แอดมิน',         cls: 'bg-primary/10 text-primary' },
+  leader:     { label: 'หัวหน้าโครงการ', cls: 'bg-meta-3/10 text-meta-3' },
+  user:       { label: 'ผู้ใช้งาน',      cls: 'bg-meta-9 text-body' },
 };
 
 export function ProjectStatusBadge({ status }) {
-  const s = PROJECT_STATUS[status] || { label: status, color: 'bg-gray-100 text-gray-700' };
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${s.color}`}>
-      {s.label}
-    </span>
-  );
+  const s = PROJECT_STATUS[status] || { label: status, cls: 'bg-meta-9 text-body' };
+  return <span className={`badge ${s.cls}`}>{s.label}</span>;
 }
 
 export function ExpenseStatusBadge({ status, sentToMember }) {
-  const s = EXPENSE_STATUS[status] || { label: status, color: 'bg-gray-100 text-gray-700' };
+  const s = EXPENSE_STATUS[status] || { label: status, cls: 'bg-meta-9 text-body' };
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${s.color}`}>
-        {s.label}
-      </span>
+    <span className="inline-flex items-center gap-1.5 flex-wrap">
+      <span className={`badge ${s.cls}`}>{s.label}</span>
       {(status === 'approved' || status === 'closed') && sentToMember && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
-          ส่งยอดแล้ว
-        </span>
+        <span className="badge bg-secondary/20 text-meta-10">ส่งยอดแล้ว</span>
       )}
       {status === 'approved' && !sentToMember && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-          ยังไม่ส่งยอด
-        </span>
+        <span className="badge bg-meta-9 text-bodydark">ยังไม่ส่งยอด</span>
       )}
     </span>
   );
 }
 
 export function RoleBadge({ role }) {
-  const s = ROLE_STATUS[role] || { label: role, color: 'bg-gray-100 text-gray-700' };
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${s.color}`}>
-      {s.label}
-    </span>
-  );
+  const s = ROLE_STATUS[role] || { label: role, cls: 'bg-meta-9 text-body' };
+  return <span className={`badge ${s.cls}`}>{s.label}</span>;
 }

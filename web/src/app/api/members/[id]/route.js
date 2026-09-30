@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth-server';
 import { pool } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { getAllowedEmailDomain, isAllowedEmail, normalizeEmail } from '@/lib/microsoft-auth';
 
 export async function GET(request, { params }) {
   const user = await getSessionUser();
@@ -9,7 +10,7 @@ export async function GET(request, { params }) {
   const { id } = await params;
   try {
     const result = await pool.query(
-      'SELECT id, prefix, first_name, last_name, nickname, team, username, role, created_at FROM members WHERE id = $1',
+      'SELECT id, prefix, first_name, last_name, nickname, team, username, role, email, created_at FROM members WHERE id = $1',
       [id]
     );
     if (!result.rows[0]) return NextResponse.json({ error: 'ไม่พบสมาชิก' }, { status: 404 });
@@ -42,7 +43,7 @@ export async function PUT(request, { params }) {
       }
     }
 
-    const { prefix, first_name, last_name, nickname, team, role: newRole, password } = await request.json();
+    const { prefix, first_name, last_name, nickname, team, role: newRole, password, email } = await request.json();
 
     if (newRole && newRole !== targetMember.role) {
       if (callerRole === 'admin') {
@@ -72,6 +73,23 @@ export async function PUT(request, { params }) {
       updates.push(`password_hash = $${idx++}`);
       values.push(hash);
     }
+    if (email !== undefined) {
+      const normalizedEmail = email ? normalizeEmail(email) : null;
+      if (email && !isAllowedEmail(normalizedEmail)) {
+        return NextResponse.json({ error: `อีเมลต้องเป็น @${getAllowedEmailDomain()}` }, { status: 400 });
+      }
+      if (normalizedEmail) {
+        const existingEmail = await pool.query(
+          'SELECT id FROM members WHERE email = $1 AND id <> $2',
+          [normalizedEmail, targetId]
+        );
+        if (existingEmail.rows[0]) {
+          return NextResponse.json({ error: 'อีเมลนี้มีอยู่ในระบบแล้ว' }, { status: 409 });
+        }
+      }
+      updates.push(`email = $${idx++}`);
+      values.push(normalizedEmail);
+    }
 
     if (updates.length === 0) return NextResponse.json({ error: 'ไม่มีข้อมูลที่ต้องการแก้ไข' }, { status: 400 });
 
@@ -80,12 +98,15 @@ export async function PUT(request, { params }) {
 
     const result = await pool.query(
       `UPDATE members SET ${updates.join(', ')} WHERE id = $${idx}
-       RETURNING id, prefix, first_name, last_name, nickname, team, username, role`,
+       RETURNING id, prefix, first_name, last_name, nickname, team, username, role, email`,
       values
     );
     return NextResponse.json(result.rows[0]);
   } catch (err) {
     console.error(err);
+    if (err?.code === '23505') {
+      return NextResponse.json({ error: 'อีเมลนี้มีอยู่ในระบบแล้ว' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }, { status: 500 });
   }
 }

@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="th">
+    <html lang="th" data-google-analytics-opt-out="">
       <body>{children}</body>
     </html>
   );

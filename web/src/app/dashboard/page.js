@@ -5,9 +5,62 @@ import { api } from '@/lib/api';
 import { getUser, isAdmin, getRoleLabel } from '@/lib/auth';
 import { ProjectStatusBadge, ExpenseStatusBadge } from '@/components/StatusBadge';
 import Link from 'next/link';
+import { FolderOpenIcon, BanknotesIcon, ChartBarIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
 
 const fmt = (n) =>
   Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function StatCard({ label, value, sub, icon: Icon, color = 'primary' }) {
+  const palette = {
+    primary: { ring: 'bg-primary',   text: 'text-primary' },
+    success: { ring: 'bg-success',   text: 'text-success' },
+    warning: { ring: 'bg-warning',   text: 'text-warning' },
+    meta5:   { ring: 'bg-meta-5',    text: 'text-meta-5' },
+    body:    { ring: 'bg-bodydark2', text: 'text-boxdark' },
+  };
+  const c = palette[color] || palette.primary;
+  return (
+    <div className="card flex items-center gap-4 p-5">
+      <div className={`w-12 h-12 ${c.ring} rounded-xl flex items-center justify-center shrink-0`}>
+        <Icon className="w-6 h-6 text-white" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-body mb-0.5">{label}</p>
+        <p className={`text-2xl font-bold ${c.text} leading-tight truncate`}>{value}</p>
+        {sub && <p className="text-xs text-bodydark mt-0.5">{sub}</p>}
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ children }) {
+  return (
+    <div className="flex items-center gap-2 mb-4">
+      <span className="block w-1 h-5 bg-primary rounded-full" />
+      <h2 className="text-base font-semibold text-boxdark">{children}</h2>
+    </div>
+  );
+}
+
+function TableHead({ cols }) {
+  return (
+    <thead>
+      <tr>
+        {cols.map((c, i) => (
+          <th key={i} className={`px-5 py-3 text-xs font-semibold text-bodydark uppercase tracking-wide bg-whiter border-b border-stroke ${c.right ? 'text-right' : 'text-left'}`}>
+            {c.label}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+const statusLabels = {
+  draft: 'ร่าง', pending: 'รออนุมัติ', active: 'กำลังดำเนินการ',
+  completed: 'เสร็จสิ้น', cancelled: 'ยกเลิก', rejected: 'ปฏิเสธ',
+};
+const statColors = ['primary', 'warning', 'success', 'meta5', 'body'];
 
 export default function DashboardPage() {
   const [user, setUser] = useState(null);
@@ -29,7 +82,6 @@ export default function DashboardPage() {
       const promises = [api.getMyDashboard()];
       if (isAdmin(u)) promises.push(api.getDashboardOverview());
       if (u.role === 'leader') promises.push(api.getLeaderDashboard());
-
       const [myData, ...rest] = await Promise.all(promises);
       setMyStats(myData);
       if (isAdmin(u)) setOverview(rest[0]);
@@ -43,68 +95,57 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
-  const statusLabels = {
-    draft: 'ร่าง', pending: 'รออนุมัติ', active: 'กำลังดำเนินการ',
-    completed: 'เสร็จสิ้น', cancelled: 'ยกเลิก', rejected: 'ปฏิเสธ',
-  };
-
   return (
     <Layout>
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">แดชบอร์ด</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            ยินดีต้อนรับ {user.prefix}{user.firstName} ({getRoleLabel(user.role)})
+      <div className="p-6 max-w-6xl mx-auto space-y-8">
+
+        {/* Welcome */}
+        <div>
+          <p className="text-body text-sm">ยินดีต้อนรับกลับมา 👋</p>
+          <h2 className="text-2xl font-bold text-boxdark mt-0.5">
+            {user.prefix}{user.firstName} {user.lastName}
+          </h2>
+          <p className="text-sm text-bodydark mt-0.5">
+            {getRoleLabel(user.role)}{user.team ? ` · ${user.team}` : ''}
           </p>
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-gray-400">กำลังโหลด...</div>
+          <div className="flex items-center justify-center py-20 text-bodydark">
+            <div className="flex items-center gap-3"><div className="spinner" /><span className="text-sm">กำลังโหลด...</span></div>
+          </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
+
             {/* Admin overview */}
             {isAdmin(user) && overview && (
               <section>
-                <h2 className="text-base font-semibold text-gray-700 mb-3">ภาพรวมระบบ</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  {overview.projectStats.map((s) => (
-                    <div key={s.status} className="bg-white rounded-xl p-4 shadow-sm">
-                      <p className="text-2xl font-bold text-gray-800">{s.count}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">โครงการ{statusLabels[s.status] || s.status}</p>
-                    </div>
+                <SectionTitle>ภาพรวมระบบ</SectionTitle>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  {overview.projectStats.map((s, i) => (
+                    <StatCard key={s.status} label={`โครงการ${statusLabels[s.status] || s.status}`}
+                      value={s.count} icon={FolderOpenIcon} color={statColors[i % statColors.length]} />
                   ))}
                 </div>
-
-                <h3 className="text-sm font-semibold text-gray-600 mb-2">โครงการล่าสุด</h3>
-                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <SectionTitle>โครงการล่าสุด</SectionTitle>
+                <div className="card">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">ชื่อโครงการ</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">สถานะ</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">หัวหน้า</th>
-                        <th className="text-right px-4 py-3 font-medium text-gray-600">ยอดรวม</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <TableHead cols={[{ label: 'ชื่อโครงการ' }, { label: 'สถานะ' }, { label: 'หัวหน้า' }, { label: 'ยอดรวม', right: true }]} />
+                    <tbody>
                       {overview.recentProjects.map((p) => (
-                        <tr key={p.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3">
-                            <Link href={`/projects/${p.id}`} className="text-blue-600 hover:underline font-medium">
-                              {p.name}
-                            </Link>
+                        <tr key={p.id} className="table-row">
+                          <td className="px-5 py-3.5">
+                            <Link href={`/projects/${p.id}`} className="font-medium text-primary hover:underline">{p.name}</Link>
                           </td>
-                          <td className="px-4 py-3">
-                            <ProjectStatusBadge status={p.status} />
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">{p.lead_name}</td>
-                          <td className="px-4 py-3 text-right text-gray-800">
-                            {p.total_amount ? `฿${fmt(p.total_amount)}` : '-'}
+                          <td className="px-5 py-3.5"><ProjectStatusBadge status={p.status} /></td>
+                          <td className="px-5 py-3.5 text-body">{p.lead_name}</td>
+                          <td className="px-5 py-3.5 text-right font-medium text-boxdark">
+                            {p.total_amount ? `฿${fmt(p.total_amount)}` : <span className="text-bodydark">-</span>}
                           </td>
                         </tr>
                       ))}
                       {overview.recentProjects.length === 0 && (
-                        <tr><td colSpan="4" className="px-4 py-6 text-center text-gray-400">ไม่มีโครงการ</td></tr>
+                        <tr><td colSpan="4" className="px-5 py-10 text-center text-bodydark">ไม่มีโครงการ</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -115,42 +156,29 @@ export default function DashboardPage() {
             {/* Leader stats */}
             {user.role === 'leader' && leaderStats && (
               <section>
-                <h2 className="text-base font-semibold text-gray-700 mb-3">โครงการที่ดูแล</h2>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="bg-white rounded-xl p-4 shadow-sm">
-                    <p className="text-2xl font-bold text-blue-600">{leaderStats.projects.length}</p>
-                    <p className="text-sm text-gray-500 mt-0.5">โครงการทั้งหมด</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-4 shadow-sm">
-                    <p className="text-2xl font-bold text-green-600">฿{fmt(leaderStats.totalBudget)}</p>
-                    <p className="text-sm text-gray-500 mt-0.5">ยอดรวมทุกโครงการ</p>
-                  </div>
+                <SectionTitle>โครงการที่ดูแล</SectionTitle>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <StatCard label="โครงการทั้งหมด" value={leaderStats.projects.length} icon={FolderOpenIcon} color="primary" />
+                  <StatCard label="ยอดรวมทุกโครงการ" value={`฿${fmt(leaderStats.totalBudget)}`} icon={BanknotesIcon} color="success" />
                 </div>
-                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="card">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">ชื่อโครงการ</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">สถานะโครงการ</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600">สถานะเอกสาร</th>
-                        <th className="text-right px-4 py-3 font-medium text-gray-600">ยอดรวม</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <TableHead cols={[{ label: 'ชื่อโครงการ' }, { label: 'สถานะโครงการ' }, { label: 'สถานะเอกสาร' }, { label: 'ยอดรวม', right: true }]} />
+                    <tbody>
                       {leaderStats.projects.map((p) => (
-                        <tr key={p.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3">
-                            <Link href={`/projects/${p.id}`} className="text-blue-600 hover:underline font-medium">
-                              {p.name}
-                            </Link>
+                        <tr key={p.id} className="table-row">
+                          <td className="px-5 py-3.5">
+                            <Link href={`/projects/${p.id}`} className="font-medium text-primary hover:underline">{p.name}</Link>
                           </td>
-                          <td className="px-4 py-3"><ProjectStatusBadge status={p.status} /></td>
-                          <td className="px-4 py-3">
+                          <td className="px-5 py-3.5"><ProjectStatusBadge status={p.status} /></td>
+                          <td className="px-5 py-3.5">
                             {p.expense_status
                               ? <ExpenseStatusBadge status={p.expense_status} sentToMember={p.sent_to_member} />
-                              : <span className="text-gray-400 text-xs">ยังไม่มีเอกสาร</span>}
+                              : <span className="text-bodydark text-xs">ยังไม่มีเอกสาร</span>}
                           </td>
-                          <td className="px-4 py-3 text-right">{p.total_amount ? `฿${fmt(p.total_amount)}` : '-'}</td>
+                          <td className="px-5 py-3.5 text-right font-medium text-boxdark">
+                            {p.total_amount ? `฿${fmt(p.total_amount)}` : <span className="text-bodydark">-</span>}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -159,32 +187,23 @@ export default function DashboardPage() {
               </section>
             )}
 
-            {/* My projects (user role only) */}
+            {/* User participated projects */}
             {user.role === 'user' && myStats?.projects && (
               <section>
-                <h2 className="text-base font-semibold text-gray-700 mb-3">โครงการที่เข้าร่วม</h2>
+                <SectionTitle>โครงการที่เข้าร่วม</SectionTitle>
                 {myStats.projects.length === 0 ? (
-                  <div className="bg-white rounded-xl shadow-sm p-8 text-center text-gray-400">
-                    ยังไม่มีโครงการที่เข้าร่วม
-                  </div>
+                  <div className="card p-10 text-center text-bodydark">ยังไม่มีโครงการที่เข้าร่วม</div>
                 ) : (
-                  <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <div className="card">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                          <th className="text-left px-4 py-3 font-medium text-gray-600">ชื่อกิจกรรม</th>
-                          <th className="text-left px-4 py-3 font-medium text-gray-600">สถานะโครงการ</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <TableHead cols={[{ label: 'ชื่อกิจกรรม' }, { label: 'สถานะโครงการ' }]} />
+                      <tbody>
                         {myStats.projects.map((p) => (
-                          <tr key={p.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3">
-                              <Link href={`/projects/${p.id}`} className="font-medium text-blue-600 hover:underline">
-                                {p.name}
-                              </Link>
+                          <tr key={p.id} className="table-row">
+                            <td className="px-5 py-3.5">
+                              <Link href={`/projects/${p.id}`} className="font-medium text-primary hover:underline">{p.name}</Link>
                             </td>
-                            <td className="px-4 py-3"><ProjectStatusBadge status={p.status} /></td>
+                            <td className="px-5 py-3.5"><ProjectStatusBadge status={p.status} /></td>
                           </tr>
                         ))}
                       </tbody>
@@ -196,96 +215,63 @@ export default function DashboardPage() {
 
             {/* My expense summary */}
             <section>
-              <h2 className="text-base font-semibold text-gray-700 mb-3">สรุปยอดของฉัน</h2>
+              <SectionTitle>สรุปยอดของฉัน</SectionTitle>
               {myStats && (
                 <>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-blue-500">
-                      <p className="text-xl font-bold text-blue-600">฿{fmt(myStats.totals.total60)}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">ยอดสะสม 60%</p>
-                    </div>
-                    <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-purple-500">
-                      <p className="text-xl font-bold text-purple-600">฿{fmt(myStats.totals.total40)}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">ยอดสะสม 40%</p>
-                    </div>
-                    <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-green-500">
-                      <p className="text-xl font-bold text-green-600">฿{fmt(myStats.totals.totalShare)}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">ยอดรวมสะสม</p>
-                    </div>
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <StatCard label="ยอดสะสม 60%" value={`฿${fmt(myStats.totals.total60)}`} icon={ChartBarIcon} color="primary" />
+                    <StatCard label="ยอดสะสม 40%" value={`฿${fmt(myStats.totals.total40)}`} icon={ArrowTrendingUpIcon} color="meta5" />
+                    <StatCard label="ยอดรวมสะสม" value={`฿${fmt(myStats.totals.totalShare)}`} icon={BanknotesIcon} color="success" />
                   </div>
 
-                  {/* Welfare budget cards */}
-                  <h3 className="text-sm font-semibold text-gray-600 mb-2">งบประมาณสวัสดิการ</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-                      <p className="text-xs text-blue-600">ยอดสะสม (60%)</p>
-                      <p className="text-lg font-bold text-blue-700 mt-0.5">
-                        ฿{fmt(myStats.welfare?.accumulated_60_percent)}
-                      </p>
-                    </div>
-                    <div className="bg-green-50 rounded-xl p-3 border border-green-100">
-                      <p className="text-xs text-green-600">ยอดเบิกได้ตามสวัสดิการ</p>
-                      <p className="text-lg font-bold text-green-700 mt-0.5">
-                        ฿{fmt(myStats.welfare?.claimable_amount)}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-                      <p className="text-xs text-gray-500">งบประมาณสวัสดิการ</p>
-                      <p className="text-lg font-bold text-gray-700 mt-0.5">
-                        ฿{fmt(myStats.welfare?.budget_amount || 1800)}
-                      </p>
-                    </div>
-                    <div className={`rounded-xl p-3 border ${Number(myStats.welfare?.balance_amount) < 0 ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-200'}`}>
-                      <p className="text-xs text-gray-500">Balance คงเหลือ</p>
-                      {Number(myStats.welfare?.balance_amount) < 0 ? (
-                        <p className="text-lg font-bold text-red-500 mt-0.5">฿0.00</p>
-                      ) : (
-                        <p className="text-lg font-bold text-gray-700 mt-0.5">
-                          ฿{fmt(myStats.welfare?.balance_amount ?? (myStats.welfare?.budget_amount || 1800))}
-                        </p>
-                      )}
-                    </div>
+                  {/* Welfare mini cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    {[
+                      { label: 'ยอดสะสม (60%)', val: fmt(myStats.welfare?.accumulated_60_percent), cls: 'bg-primary/10 border-primary/20 text-primary' },
+                      { label: 'ยอดเบิกได้ตามสวัสดิการ', val: fmt(myStats.welfare?.claimable_amount), cls: 'bg-success/10 border-success/20 text-success' },
+                      { label: 'งบประมาณสวัสดิการ', val: fmt(myStats.welfare?.budget_amount || 1800), cls: 'bg-whiter border-stroke text-boxdark' },
+                      {
+                        label: 'Balance คงเหลือ',
+                        val: Number(myStats.welfare?.balance_amount) < 0 ? '0.00' : fmt(myStats.welfare?.balance_amount ?? (myStats.welfare?.budget_amount || 1800)),
+                        cls: Number(myStats.welfare?.balance_amount) < 0 ? 'bg-danger/10 border-danger/20 text-danger' : 'bg-whiter border-stroke text-boxdark',
+                      },
+                    ].map((w) => (
+                      <div key={w.label} className={`rounded-xl p-4 border ${w.cls}`}>
+                        <p className="text-xs opacity-70 mb-1">{w.label}</p>
+                        <p className="text-lg font-bold">฿{w.val}</p>
+                      </div>
+                    ))}
                   </div>
 
                   {myStats.shares.length > 0 ? (
-                    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div className="card">
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="text-left px-4 py-3 font-medium text-gray-600">โครงการ</th>
-                            <th className="text-right px-4 py-3 font-medium text-gray-600">ส่วน 60%</th>
-                            <th className="text-right px-4 py-3 font-medium text-gray-600">ส่วน 40%</th>
-                            <th className="text-right px-4 py-3 font-medium text-gray-600">รวม</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <TableHead cols={[
+                          { label: 'โครงการ' },
+                          { label: 'ส่วน 60%', right: true },
+                          { label: 'ส่วน 40%', right: true },
+                          { label: 'รวม', right: true },
+                        ]} />
+                        <tbody>
                           {myStats.shares.map((s) => (
-                            <tr key={s.document_id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3">
-                                <Link href={`/expenses/${s.document_id}`} className="text-blue-600 hover:underline font-medium">
-                                  {s.project_name}
-                                </Link>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  {s.activity_date && (
-                                    <p className="text-xs text-gray-400">
-                                      {new Date(s.activity_date).toLocaleDateString('th-TH')}
-                                    </p>
-                                  )}
+                            <tr key={s.document_id} className="table-row">
+                              <td className="px-5 py-3.5">
+                                <Link href={`/expenses/${s.document_id}`} className="font-medium text-primary hover:underline">{s.project_name}</Link>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  {s.activity_date && <p className="text-xs text-bodydark">{new Date(s.activity_date).toLocaleDateString('th-TH')}</p>}
                                   <ExpenseStatusBadge status={s.expense_status} sentToMember={s.sent_to_member} />
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-right">฿{fmt(s.share_60)}</td>
-                              <td className="px-4 py-3 text-right">฿{fmt(s.share_40)}</td>
-                              <td className="px-4 py-3 text-right font-semibold">฿{fmt(s.total_share)}</td>
+                              <td className="px-5 py-3.5 text-right text-body">฿{fmt(s.share_60)}</td>
+                              <td className="px-5 py-3.5 text-right text-body">฿{fmt(s.share_40)}</td>
+                              <td className="px-5 py-3.5 text-right font-semibold text-boxdark">฿{fmt(s.total_share)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                   ) : (
-                    <div className="bg-white rounded-xl shadow-sm p-8 text-center text-gray-400">
-                      ยังไม่มียอดที่ส่งให้
-                    </div>
+                    <div className="card p-10 text-center text-bodydark">ยังไม่มียอดที่ส่งให้</div>
                   )}
                 </>
               )}
